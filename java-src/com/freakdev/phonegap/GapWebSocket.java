@@ -8,10 +8,12 @@ import android.webkit.WebView;
  public class GapWebSocket extends WebSocket{
 
 	WebView mView;
+	private final WebSocket instance;
 	
 	public GapWebSocket(WebView v, String url) throws URISyntaxException {
 		super(url);
 		mView = v;
+		this.instance = this;
 	}
 	
 	protected static class JSEvent {
@@ -26,23 +28,42 @@ import android.webkit.WebView;
 	}
 	
 	@Override
-	protected void onmessage(String data) {
-		mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("message", this.toString(), data) + ")");
+	protected void onmessage(final String data) {
+		mView.post(new Runnable(){
+			public void run() {
+				mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("message", instance.toString(), data) + ")");
+			}
+		});
 	}
 
 	@Override	
 	protected void onopen() {
-		mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("open", this.toString()) + ")");
+		try {
+			mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("open", this.toString()) + ")");
+		} catch (Exception e) {
+			Log.i("WebSocketException", e.toString());
+			// TODO: handle exception
+		}
 	}
 	
 	@Override	
 	protected void onerror() {
-		mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("error", this.toString()) + ")");
+		try {
+			mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("error", this.toString()) + ")");
+		} catch (Exception e) {
+			Log.i("WebSocketException", e.toString());
+			// TODO: handle exception
+		}
 	}
 
 	@Override
 	protected void onclose() {
-		mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("close", this.toString()) + ")");		
+		try {
+			mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("close", this.toString()) + ")");
+		} catch (Exception e) {
+			Log.i("WebSocketException", e.toString());
+			// TODO: handle exception
+		}
 	}
 	
 	public String getIdentifier() {

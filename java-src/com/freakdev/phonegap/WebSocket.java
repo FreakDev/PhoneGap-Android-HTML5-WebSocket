@@ -23,6 +23,8 @@ public class WebSocket extends com.sixfire.WebSocket {
     
     Thread connectThread = new Thread(new ConnectRunnable());
     
+    private final WebSocket instance;
+
     protected Handler _messageHandler = new Handler() {
     	
     	@Override
@@ -39,10 +41,9 @@ public class WebSocket extends com.sixfire.WebSocket {
      */
 	public WebSocket(String url) throws URISyntaxException {
 		super(new URI(url));
-		
+		this.instance = this;
 		connectThread.start();
 	}
-	
 	
 	// event methods
 	// these methods are called when an event is raised you should overrides their behavior to match your need
@@ -58,7 +59,14 @@ public class WebSocket extends com.sixfire.WebSocket {
 	
 	protected void onclose() {
 	}
-	
+
+    public void _send(String data) {
+    	try {
+			super.send(data);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+    }
 	
 	@Override
 	public void close() throws IOException
@@ -69,23 +77,28 @@ public class WebSocket extends com.sixfire.WebSocket {
 			this.readyState = WebSocket.CLOSED;
 		}
 	}
-	
+
 	@Override
-	public void send(String data)
+	public void send(final String data)
 	{
-		if (WebSocket.OPEN == this.readyState) {
-			try {
-				super.send(data);
-			} catch (IOException e) {
-				Log.w("WebSocket", "[send] " + e.getMessage());
-				this.onerror();
-			}
-		} else {
-			// throw invalid state exception
-		}
+		// new thread
+	    new Thread(new Runnable() {
+		    public void run() {
+				if (WebSocket.OPEN == instance.readyState) {
+					try {
+						instance._send(data);
+					} catch (Exception e) {
+						Log.w("WebSocket", "[send] " + e.getMessage());
+						instance.onerror();
+					}
+				} else {
+					// throw invalid state exception
+				}
+		    }
+	    }).start();
 	}
 
-	
+
 	protected void WaitForDataLoop () {
 		
 		Log.i("Thread Info", Thread.currentThread().getName()); 
@@ -106,7 +119,7 @@ public class WebSocket extends com.sixfire.WebSocket {
 	
 	private class ConnectRunnable implements Runnable {
 
-		@Override
+		//Override
 		public void run() {
 			Log.i("Thread Info", Thread.currentThread().getName());
 			try {
@@ -115,7 +128,7 @@ public class WebSocket extends com.sixfire.WebSocket {
 					connect();
 					readyState = WebSocket.OPEN;
 					onopen();
-					Log.i("WebSocket", "status ConnectŽ");
+					Log.i("WebSocket", "status Connectï¿½");
 					
 					WaitForDataLoop();
 				}
@@ -126,12 +139,11 @@ public class WebSocket extends com.sixfire.WebSocket {
 				try {
 					close();
 				} catch (IOException e1) {
-					Log.w("WebSocket", "[Connect.run |Êconnection fallback] " + e.getMessage());
+					Log.w("WebSocket", "[Connect.run |ï¿½connection fallback] " + e.getMessage());
 				}
 			}
 			
 		}
 		
 	}
-
 }

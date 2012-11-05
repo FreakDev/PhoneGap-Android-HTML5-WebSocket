@@ -5,11 +5,14 @@ import java.net.URISyntaxException;
 import android.util.Log;
 import android.webkit.WebView;
 
- public class GapWebSocket extends WebSocket{
+ public class GapWebSocket extends WebSocket {
 
 	WebView mView;
 	private final WebSocket instance;
 	
+	private final Object LOCK = new Object();
+	public final StringBuilder mPendingJS = new StringBuilder();
+
 	public GapWebSocket(WebView v, String url) throws URISyntaxException {
 		super(url);
 		mView = v;
@@ -31,7 +34,7 @@ import android.webkit.WebView;
 	protected void onmessage(final String data) {
 		mView.post(new Runnable(){
 			public void run() {
-				mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("message", instance.toString(), data) + ")");
+				instance.execJS("WebSocket.triggerEvent(" + JSEvent.buildJSON("message", instance.toString(), data) + ")");
 			}
 		});
 	}
@@ -49,7 +52,7 @@ import android.webkit.WebView;
 	@Override	
 	protected void onerror() {
 		try {
-			mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("error", this.toString()) + ")");
+			instance.execJS("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("error", this.toString()) + ")");
 		} catch (Exception e) {
 			Log.i("WebSocketException", e.toString());
 			// TODO: handle exception
@@ -59,7 +62,7 @@ import android.webkit.WebView;
 	@Override
 	protected void onclose() {
 		try {
-			mView.loadUrl("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("close", this.toString()) + ")");
+			instance.execJS("javascript:WebSocket.triggerEvent(" + JSEvent.buildJSON("close", this.toString()) + ")");
 		} catch (Exception e) {
 			Log.i("WebSocketException", e.toString());
 			// TODO: handle exception
@@ -73,5 +76,25 @@ import android.webkit.WebView;
 	public int getReadyState() {
 		return this.readyState;
 	}	
+
+	public void execJS(String js) {
+	    synchronized(LOCK) {
+	        if (mPendingJS.length() == 0) mPendingJS.append("javascript: ");
+	        mPendingJS.append(js).append("; ");
+	    }
+	}
 	
+	public String getPendingJS() {
+		try {
+			synchronized(LOCK) {
+				String pendingCommands = mPendingJS.toString();
+				mPendingJS.setLength(0);
+				return pendingCommands;
+			}
+		} catch (Exception e) {
+			Log.i("JSPOLLERROR", e.toString());
+		}
+		return "";
+	}
+
 }
